@@ -1,0 +1,906 @@
+---
+title: "Week1: Data Wrnagling and EDA"
+format: html
+execute:
+  warning: false
+  message: false
+  error: false
+---
+
+## The Dataset
+
+We'll use ["UCI Bank Marketing"](https://archive.ics.uci.edu/dataset/222/bank+marketing) dataset to demonstrate week 1 concepts.
+
+The Bank Marketing dataset is a real-world dataset from the UCI Machine Learning Repository about direct marketing campaigns carried out by a Portuguese bank. The bank used telephone calls to contact potential customers and offer them a term deposit product — a kind of savings or investment account.
+
+```{r}
+library(reticulate)
+use_python("C:/Program Files/Python313/python.exe", required = TRUE)
+```
+
+
+## Part A: First Contact with the Dataset
+
+---
+
+## A1. Loading and Inspecting the Dataset
+
+We begin by loading the dataset and performing a **minimal structural inspection**.
+At this stage, the goal is *not* analysis, but orientation.
+
+---
+
+### R: Load and Inspect the Data
+
+#### Load required packages
+
+```{r}
+library(tidyverse)
+```
+
+#### Read the dataset
+```{r}
+bank <- read.csv("data/raw/bank-additional.csv", sep = ";",
+stringsAsFactors = FALSE)
+```
+
+#### Display first few rows
+```{r}
+head(bank)
+```
+
+#### Dimensions of the dataset
+```{r}
+dim(bank)
+```
+
+#### Column names
+```{r}
+colnames(bank)
+```
+
+**Explanation (R)**
+
+* The file uses `;` as a separator, which is common in datasets.
+* We explicitly disable automatic factor conversion to retain control over data types.
+* `dim()` confirms the dataset size (rows × columns).
+* `colnames()` provides an overview of available variables.
+
+---
+
+### Python: Load and Inspect the Data
+
+```{python}
+import pandas as pd
+```
+
+#### Read the dataset
+```{python}
+bank = pd.read_csv("data/raw/bank-additional.csv", sep=";")
+```
+
+#### Display first few rows
+```{python}
+bank.head()
+```
+#### Dimensions of the dataset
+```{python}
+bank.shape
+```
+#### Column names
+```{python}
+bank.columns.tolist()
+```
+**Explanation (Python)**
+
+* As in R, we specify the separator explicitly.
+* `.head()` shows the first five rows.
+* `.shape` reports the dataset size.
+* `.columns.tolist()` gives a readable list of variable names.
+
+---
+
+## A2. What Does One Row Represent?
+
+Before doing *any* analysis, we must understand **what a single row corresponds to in the real world**.
+
+### Interpretation
+
+A **single row represents one contact attempt** made during a direct marketing campaign by a Portuguese bank, where:
+
+* a specific client was contacted,
+* during a specific campaign period,
+* under a particular economic context,
+* resulting in a subscription outcome (`y = yes` or `no`).
+
+Importantly:
+
+* The same client may appear **multiple times**.
+* Multiple rows do **not** necessarily represent independent clients.
+* The dataset records *contact-level events*, not client summaries.
+
+This interpretation has consequences for:
+
+* aggregation (Since the same client can appear multiple times, you must be careful when summarising or aggregating the data.),
+* leakage (Some variables describe outcomes of previous contacts or later information in the campaign. If these are used incorrectly, the model may accidentally use information that would not have been known at the time of prediction.),
+* model design later in the module (Because rows are not independent clients, common modeling assumptions (such as independence of observations) may be violated.).
+
+---
+
+## A3. Identifying Groups of Variables
+
+We now group variables conceptually, based on what aspect of the process they describe.
+
+---
+
+### Client-Related Variables
+
+These describe **who the client is** (largely static attributes):
+
+* `age`
+* `job`
+* `marital`
+* `education`
+* `default`
+* `housing`
+* `loan`
+
+These variables typically exist **before** the marketing contact.
+
+---
+
+### Campaign / Contact-Related Variables
+
+These describe **how and when the client was contacted**:
+
+* `contact`
+* `month`
+* `day_of_week`
+* `duration`
+* `campaign`: The number of times the client was contacted during the current marketing campaign.
+* `pdays`: The number of days since the client was last contacted in a previous campaign. `999` means the client was not contacted previously.
+* `previous`: The number of contacts made with the client before the current campaign.
+* `poutcome`: The outcome of the previous marketing campaign for the client.
+
+Some of these (notably `duration`) raise **serious validity and leakage concerns**, which will be revisited later.
+
+---
+
+### Economic Context Variables
+
+These describe the **macroeconomic environment** at the time of the campaign:
+
+* `emp.var.rate`: The employment variation rate, a macroeconomic indicator.
+* `cons.price.idx`: The consumer price index, a measure of inflation.
+* `cons.conf.idx`: The consumer confidence index, measuring how optimistic consumers feel about the economy.
+* `euribor3m`: The 3-month Euribor interest rate, a key European benchmark rate.
+* `nr.employed`: The total number of people employed in the economy (in thousands).
+
+These variables are shared across many rows and are **not client-specific**.
+
+---
+
+### Outcome Variable
+
+* `y` — whether the client subscribed to a term deposit (`yes` / `no`)
+
+This is the **target variable** for supervised learning.
+
+---
+
+## A4. Initial Structural Observations
+
+From this first inspection, we can already make several important observations:
+
+1. The dataset mixes **client-level**, **event-level**, and **context-level** information.
+2. Several variables are categorical but encoded as strings.
+3. Some numeric-looking values (e.g. `pdays = 999`) may actually be **codes**, not measurements.
+4. The presence of `duration` suggests that **not all variables are valid at prediction time**.
+
+These observations will guide all subsequent wrangling and modelling decisions.
+
+---
+
+## Key Takeaway from Part A
+
+> **Understanding what a row represents is more important than understanding how to fit a model.**
+
+Before moving to cleaning or EDA, we must be clear about:
+
+* the data-generating process,
+* the unit of analysis,
+* and which variables are legitimate inputs.
+
+---
+
+## Part B: Data Types & Representation
+
+---
+
+## B1. Why Data Types Matter
+
+Before cleaning or analysis, we must decide **how each variable should be interpreted**.
+Software may assign a data type automatically, but **meaning comes from context**, not syntax.
+
+A common mistake is to assume that:
+
+* numeric values are always quantitative, or
+* categorical values are always nominal.
+
+In this section, we examine **what each variable represents**, rather than how it is stored.
+
+---
+
+## B2. Inspecting Software-Inferred Data Types
+
+We start by checking how the software interprets each column.
+
+---
+
+#### R: Inspect Column Types
+
+```{r}
+str(bank)
+```
+**Explanation (R)**
+
+* `str()` shows how R currently stores each column.
+* At this stage, many variables are character strings, even though they encode categories.
+* Numeric-looking columns may still require reinterpretation.
+
+---
+
+#### Python: Inspect Column Types
+
+```{python}
+bank.dtypes
+```
+**Explanation (Python)**
+
+* Pandas infers data types based on values present.
+* This inference is technical, not semantic.
+* Our task is to judge whether the inferred types make *conceptual sense*.
+
+---
+
+## B3. Conceptual Classification of Variables
+
+We now classify variables based on **what they mean**, not how they are stored.
+
+---
+
+### Client-Related Variables
+
+| Variable    | Conceptual Type           | Notes                                   |
+| ----------- | ------------------------- | --------------------------------------- |
+| `age`       | Numeric (continuous)      | Measured in years                       |
+| `job`       | Categorical (nominal)     | No inherent ordering                    |
+| `marital`   | Categorical (nominal)     | Categories are labels                   |
+| `education` | Categorical (ordinal-ish) | Ordering exists, but spacing is unclear |
+| `default`   | Binary categorical        | Yes / No / Unknown                      |
+| `housing`   | Binary categorical        | Yes / No / Unknown                      |
+| `loan`      | Binary categorical        | Yes / No / Unknown                      |
+
+Even when categories look ordered (e.g. education), treating them as numeric is risky.
+
+---
+
+### Campaign / Contact Variables
+
+| Variable      | Conceptual Type           | Notes                                  |
+| ------------- | ------------------------- | -------------------------------------- |
+| `contact`     | Categorical               | Method of contact                      |
+| `month`       | Categorical (cyclic)      | Month names, not numeric               |
+| `day_of_week` | Categorical (cyclic)      | Ordering exists but is circular        |
+| `duration`    | Numeric (but problematic) | Known *after* the call                 |
+| `campaign`    | Numeric (count)           | Number of contacts                     |
+| `pdays`       | Numeric code              | `999` means “not previously contacted” |
+| `previous`    | Numeric (count)           | Past contacts                          |
+| `poutcome`    | Categorical               | Outcome of previous campaign           |
+
+---
+
+### Economic Context Variables
+
+| Variable         | Conceptual Type      | Notes         |
+| ---------------- | -------------------- | ------------- |
+| `emp.var.rate`   | Numeric (continuous) | Macro-level   |
+| `cons.price.idx` | Numeric (continuous) | Macro-level   |
+| `cons.conf.idx`  | Numeric (continuous) | Macro-level   |
+| `euribor3m`      | Numeric (continuous) | Interest rate |
+| `nr.employed`    | Numeric (continuous) | Labour market |
+
+These variables are **shared across many rows** and vary slowly over time.
+
+---
+
+### Outcome Variable
+
+| Variable | Conceptual Type    | Notes           |
+| -------- | ------------------ | --------------- |
+| `y`      | Binary categorical | Target variable |
+
+---
+
+## B4. Numeric Does Not Always Mean Quantitative
+
+Some variables are stored as numbers but **should not be treated as numeric measurements**.
+
+---
+
+### Example 1: `pdays`
+
+The variable `pdays` records the number of days since the client was last contacted.
+However, the value `999` is a **code** meaning *“not previously contacted”*.
+
+Treating `999` as a real number would:
+
+* distort summaries,
+* mislead models,
+* imply false ordering.
+
+---
+
+#### R: Inspect `pdays`
+```{r}
+table(bank$pdays)
+```
+---
+
+#### Python: Inspect `pdays`
+```{python}
+bank["pdays"].value_counts().head()
+```
+**Interpretation**
+
+* The dominance of `999` indicates a categorical state, not a large number of days.
+* This variable must be **re-encoded or handled carefully** later.
+
+---
+
+### Example 2: `duration`
+
+`duration` measures the length of the phone call in seconds.
+
+While numeric, it is **not valid for prediction**, because:
+
+* it is only known *after* the call ends,
+* it directly encodes success likelihood.
+
+Including it would result in **data leakage**.
+
+This does not mean it should be deleted immediately — it can still be useful for:
+
+* post-hoc analysis,
+* descriptive understanding.
+
+---
+
+## B5. Ordinal vs Nominal: A Subtle Distinction
+
+Some variables appear ordered but lack meaningful numeric spacing.
+
+---
+
+### Example: `education`
+
+Values such as:
+
+* `basic.9y`
+* `high.school`
+* `university.degree`
+
+suggest ordering, but:
+
+* the distance between levels is not defined,
+* numeric encoding would impose artificial structure.
+
+At this stage, it is safest to treat `education` as **categorical**, not numeric.
+
+---
+
+## B6. Representation Is a Modelling Decision
+
+From this analysis, an important principle emerges:
+
+> **Choosing how to represent a variable is already a modelling decision.**
+
+Even before fitting any model, we have decided:
+
+* what counts as numeric,
+* what counts as categorical,
+* which values are codes,
+* which variables may be invalid at prediction time.
+
+These decisions will:
+
+* shape EDA results,
+* influence model behaviour,
+* affect interpretability and fairness.
+
+---
+
+## Key Takeaway from Part B
+
+> **Data types inferred by software are not the same as data meanings.**
+> Thoughtful representation is a prerequisite for valid machine learning.
+
+---
+
+## Part C: Data Quality & Validity Checks
+
+---
+
+## C1. Why Data Quality Comes Before Modelling
+
+Before any modelling or even detailed EDA, we must assess **whether the data is valid for the questions we intend to ask**.
+
+Data quality is **not** just about missing values. It includes:
+
+* coded values that look numeric,
+* categories such as `"unknown"`,
+* variables that violate the prediction-time assumption.
+
+In this section, we systematically identify such issues and reason about how to handle them.
+
+---
+
+## C2. Missing Values vs “Unknown” Values
+
+The dataset does **not** contain standard missing values (`NA` / `NaN`) in most columns.
+Instead, missingness is often encoded explicitly as `"unknown"` or implicitly via sentinel values.
+
+---
+
+#### R: Check for Missing Values
+
+```{r}
+colSums(is.na(bank))
+```
+**Observation**
+
+* There are no classical `NA` values.
+* This does *not* mean the data is complete.
+
+---
+
+#### Python: Check for Missing Values
+
+Count missing (NaN) values per column
+```{python}
+bank.isna().sum()
+```
+---
+
+## C3. Identifying “Unknown” Categories
+
+Several categorical variables use `"unknown"` as a valid category.
+
+---
+
+#### R: Frequency of "unknown" Values
+
+```{r}
+unknown_counts <- sapply(bank, function(x) {
+if (is.character(x)) sum(x == "unknown") else 0
+})
+unknown_counts
+```
+---
+
+#### Python: Frequency of "unknown" Values
+
+```{python}
+unknown_counts = {
+col: (bank[col] == "unknown").sum()
+for col in bank.columns
+if bank[col].dtype == "object"
+}
+
+unknown_counts
+```
+
+**Interpretation**
+
+* Variables such as `job`, `education`, `default`, `housing`, and `loan` contain `"unknown"`.
+* These values are **not random missingness** — they reflect operational or reporting limitations.
+
+---
+
+## C4. Sentinel Values and Coded Entries
+
+Some numeric-looking variables encode **special states**.
+
+---
+
+### Example 1: `pdays`
+
+As discussed earlier:
+
+* `pdays = 999` means *client not previously contacted*.
+
+---
+
+#### R: Examine Distribution of `pdays`
+
+```{r}
+table(bank$pdays)
+```
+---
+
+#### Python: Examine Distribution of `pdays`
+```{python}
+bank["pdays"].value_counts().sort_index().head(10)
+```
+
+**Interpretation**
+
+* The dominance of `999` indicates a **categorical condition**, not a numeric measurement.
+* Treating `pdays` as continuous without recoding would distort both EDA and modelling.
+
+---
+
+### Example 2: `campaign` and `previous`
+
+These variables are counts, but:
+
+* high values may indicate repeated targeting,
+* extreme values may represent special cases rather than typical behaviour.
+
+They are **valid**, but require interpretation.
+
+---
+
+## C5. Variables That Threaten Validity
+
+Some variables are technically correct but **conceptually problematic**.
+
+---
+
+### Critical Example: `duration`
+
+`duration` measures call length (in seconds).
+
+While accurate, it violates a core modelling assumption:
+
+> **At prediction time, call duration is not known.**
+
+Including `duration` would:
+
+* artificially inflate performance,
+* create a misleading model,
+* invalidate conclusions.
+
+This is an example of **data leakage**, not missing data.
+
+---
+
+## C6. Classifying Data Quality Issues
+
+We now classify several observed issues.
+
+---
+
+### Issue 1: `"unknown"` in `education`
+
+* **Type:** Representation / measurement issue
+* **Cause:** Information not recorded or disclosed
+* **Possible actions:**
+
+  * keep as a separate category,
+  * combine with similar levels,
+  * treat as missing later.
+
+No single correct choice — justification matters.
+
+---
+
+### Issue 2: `pdays = 999`
+
+* **Type:** Representation issue
+* **Cause:** Sentinel coding
+* **Possible actions:**
+
+  * convert to categorical (“previously contacted: yes/no”),
+  * replace with missing and add indicator variable.
+
+---
+
+### Issue 3: `duration`
+
+* **Type:** Validity issue (prediction-time leakage)
+* **Cause:** Variable observed after outcome
+* **Action:**
+
+  * exclude from predictive models,
+  * retain for descriptive analysis.
+
+---
+
+## C7. Should Everything Be “Cleaned”?
+
+A key principle:
+
+> **Not all unusual values are errors.**
+
+* `"unknown"` may carry information.
+* `999` encodes a meaningful state.
+* Rare categories may represent real but uncommon situations.
+
+Over-aggressive cleaning can:
+
+* remove signal,
+* introduce bias,
+* oversimplify reality.
+
+---
+
+## C8. Data Quality Is Question-Dependent
+
+The same variable may be:
+
+* valid for EDA,
+* invalid for prediction,
+* acceptable for clustering,
+* problematic for causal interpretation.
+
+For example:
+
+* `duration` is useful for understanding call outcomes,
+* but invalid for pre-call prediction.
+
+---
+
+## Key Takeaway from Part C
+
+> **Data quality is not about making data “look nice”.
+> It is about ensuring that conclusions are valid for the question being asked.**
+
+Every data quality decision should be:
+
+* explicit,
+* justified,
+* revisited when the task changes.
+
+---
+
+## Part D: Exploratory Data Analysis (EDA)
+
+---
+
+## D1. Purpose of Exploratory Data Analysis
+
+Exploratory Data Analysis (EDA) is used to:
+
+* understand distributions and patterns,
+* identify unusual behaviour,
+* generate hypotheses for later modelling.
+
+EDA **does not prove causation** and **does not optimise models**.
+Its role is to **inform better questions**.
+
+---
+
+## D2. Exploring the Outcome Variable (`y`)
+
+We begin by examining the target variable to understand **class balance**.
+
+---
+
+#### R: Distribution of `y`
+
+Count outcomes
+```{r}
+table(bank$y)
+```
+
+Proportion of outcomes
+```{r}
+prop.table(table(bank$y))
+```
+---
+
+#### Python: Distribution of `y`
+```{python}
+bank["y"].value_counts()
+
+bank["y"].value_counts(normalize=True)
+```
+
+**Interpretation**
+
+* The outcome variable is **imbalanced**.
+* Most clients do **not** subscribe to the term deposit.
+* This imbalance has implications for:
+
+  * model evaluation,
+  * metric choice,
+  * interpretation of accuracy.
+
+At this stage, we simply **note** the imbalance.
+
+---
+
+## D3. Exploratory Analysis of Categorical Variables
+
+We now examine how categorical variables relate to the outcome.
+
+---
+
+### Example 1: Job Type vs Subscription
+
+---
+
+#### R: Job vs Outcome
+
+```{r}
+job_y <- table(bank$job, bank$y)
+
+# Convert to proportions by job
+prop.table(job_y, margin = 1)
+```
+---
+
+#### Python: Job vs Outcome
+```{python}
+pd.crosstab(bank["job"], bank["y"], normalize="index")
+```
+
+**Interpretation**
+
+* Some job categories appear to have higher subscription rates.
+* However:
+
+  * some categories are rare,
+  * proportions may be unstable.
+* This is **association**, not causation.
+
+---
+
+### Example 2: Contact Method vs Outcome
+
+---
+
+### R: Contact vs Outcome
+```{r}
+prop.table(table(bank$contact, bank$y), margin = 1)
+```
+---
+
+### Python: Contact vs Outcome
+```{python}
+pd.crosstab(bank["contact"], bank["y"], normalize="index")
+```
+**Interpretation**
+
+* Different contact methods show different success rates.
+* This may reflect:
+
+  * operational decisions,
+  * client availability,
+  * campaign strategy.
+
+EDA alone cannot disentangle these effects.
+
+---
+
+## D4. Exploratory Analysis of Numeric Variables
+
+Numeric variables allow us to explore distributions and conditional patterns.
+
+---
+
+### Example 1: Age Distribution
+
+---
+
+#### R: Age Distribution
+```{r}
+summary(bank$age)
+
+hist(bank$age, breaks = 30,
+main = "Distribution of Age",
+xlab = "Age")
+```
+---
+
+#### Python: Age Distribution
+```{python}
+bank["age"].describe()
+
+bank["age"].hist(bins=30)
+```
+
+**Interpretation**
+
+* Age is right-skewed.
+* Need to observe the overlap between subscribers and non-subscribers.
+* Can we identify/conclude threshold from the distribution alone?
+
+---
+
+### Example 2: Duration and Outcome (with Caution)
+
+Even though `duration` is **not valid for prediction**, it is informative for EDA.
+
+---
+
+#### R: Duration by Outcome
+```{r}
+boxplot(duration ~ y,
+data = bank,
+main = "Call Duration by Outcome",
+ylab = "Duration (seconds)")
+```
+---
+
+#### Python: Duration by Outcome
+```{python}
+bank.boxplot(column="duration", by="y")
+```
+
+**Interpretation**
+
+* Calls resulting in subscription tend to be longer.
+* This relationship is **expected**, but also **problematic**.
+* It reinforces why `duration` must be excluded from predictive models.
+
+---
+
+## D5. Multivariate EDA: Combining Variables
+
+EDA becomes more informative when variables are combined.
+
+---
+
+### Example: Age vs Outcome by Contact Method
+
+---
+
+#### R
+```{r}
+library(ggplot2)
+
+ggplot(bank, aes(x = age, fill = y)) +
+geom_histogram(bins = 30, position = "identity", alpha = 0.6) +
+facet_wrap(~ contact) +
+labs(title = "Age Distribution by Outcome and Contact Method")
+```
+---
+
+#### Python
+```{python}
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+sns.histplot(data=bank, x="age", hue="y",
+bins=30, element="step", stat="density")
+
+plt.show()
+```
+
+**Interpretation**
+
+* Patterns may differ across contact methods.
+* Overlaps remain substantial.
+* Multivariate EDA suggests complexity rather than simple rules.
+
+---
+
+## D6. What EDA Can — and Cannot — Tell Us
+
+From this EDA, we can say:
+
+- ✔ Some variables are associated with subscription outcomes
+- ✔ Certain categories appear more promising than others
+- ✔ Data imbalance is present
+
+But we **cannot** conclude:
+
+- ✘ which variables *cause* subscription
+- ✘ how a model should weight features
+- ✘ what performance is achievable
+
+These questions require **careful modelling**, informed by EDA.
+
+---
