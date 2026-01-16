@@ -1,11 +1,18 @@
 ---
-title: "Week1: Data Wrnagling and EDA"
-format: html
+title: "Week 1: Data Wrangling and EDA"
+format:
+  html:
+    toc: true
+    number-sections: true
+  pdf:
+    toc: true
+    number-sections: true
 execute:
   warning: false
   message: false
   error: false
 ---
+
 
 ## The Dataset
 
