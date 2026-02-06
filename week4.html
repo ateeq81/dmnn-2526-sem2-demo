@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.32">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Week4: Metrics and Naive Bayes</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="week4_files/libs/clipboard/clipboard.min.js"></script>
+<script src="week4_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="week4_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="week4_files/libs/quarto-html/popper.min.js"></script>
+<script src="week4_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="week4_files/libs/quarto-html/anchor.min.js"></script>
+<link href="week4_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="week4_files/libs/quarto-html/quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="week4_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="week4_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="week4_files/libs/bootstrap/bootstrap-bb462d781dde1847d9e3ccf7736099dd.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#why-evaluation-deserves-its-own-discussion" id="toc-why-evaluation-deserves-its-own-discussion" class="nav-link active" data-scroll-target="#why-evaluation-deserves-its-own-discussion">1. Why Evaluation Deserves Its Own Discussion</a>
+  <ul class="collapse">
+  <li><a href="#models-do-not-speak-for-themselves" id="toc-models-do-not-speak-for-themselves" class="nav-link" data-scroll-target="#models-do-not-speak-for-themselves">1.1 Models Do Not Speak for Themselves</a></li>
+  </ul></li>
+  <li><a href="#classification-evaluation-confusion-matrix-core-metrics" id="toc-classification-evaluation-confusion-matrix-core-metrics" class="nav-link" data-scroll-target="#classification-evaluation-confusion-matrix-core-metrics">2. Classification Evaluation — Confusion Matrix &amp; Core Metrics</a>
+  <ul class="collapse">
+  <li><a href="#the-confusion-matrix-the-foundation" id="toc-the-confusion-matrix-the-foundation" class="nav-link" data-scroll-target="#the-confusion-matrix-the-foundation">2.1 The Confusion Matrix: The Foundation</a></li>
+  <li><a href="#interpreting-the-outcomes" id="toc-interpreting-the-outcomes" class="nav-link" data-scroll-target="#interpreting-the-outcomes">2.2 Interpreting the Outcomes</a></li>
+  <li><a href="#accuracy-the-simplest-metric" id="toc-accuracy-the-simplest-metric" class="nav-link" data-scroll-target="#accuracy-the-simplest-metric">2.3 Accuracy: The Simplest Metric</a></li>
+  <li><a href="#why-accuracy-can-be-misleading" id="toc-why-accuracy-can-be-misleading" class="nav-link" data-scroll-target="#why-accuracy-can-be-misleading">Why Accuracy Can Be Misleading</a></li>
+  <li><a href="#precision-recall-and-f1-score-a-loan-approval-example" id="toc-precision-recall-and-f1-score-a-loan-approval-example" class="nav-link" data-scroll-target="#precision-recall-and-f1-score-a-loan-approval-example">2.4 Precision, Recall, and F1 Score: A Loan Approval Example</a></li>
+  </ul></li>
+  <li><a href="#naive-bayes-demo-classification-evaluation-in-practice" id="toc-naive-bayes-demo-classification-evaluation-in-practice" class="nav-link" data-scroll-target="#naive-bayes-demo-classification-evaluation-in-practice">3. Naive Bayes Demo — Classification Evaluation in Practice</a>
+  <ul class="collapse">
+  <li><a href="#dataset-and-feature-choice" id="toc-dataset-and-feature-choice" class="nav-link" data-scroll-target="#dataset-and-feature-choice">3.1 Dataset and Feature Choice</a></li>
+  <li><a href="#loading-data" id="toc-loading-data" class="nav-link" data-scroll-target="#loading-data">3.2 Loading Data</a></li>
+  <li><a href="#preparing-the-data" id="toc-preparing-the-data" class="nav-link" data-scroll-target="#preparing-the-data">3.3 Preparing the Data</a></li>
+  <li><a href="#training-a-naive-bayes-classifier" id="toc-training-a-naive-bayes-classifier" class="nav-link" data-scroll-target="#training-a-naive-bayes-classifier">3.4 Training a Naive Bayes Classifier</a></li>
+  <li><a href="#from-probabilities-to-predictions" id="toc-from-probabilities-to-predictions" class="nav-link" data-scroll-target="#from-probabilities-to-predictions">3.5 From Probabilities to Predictions</a></li>
+  </ul></li>
+  <li><a href="#computing-classification-metrics-r-python" id="toc-computing-classification-metrics-r-python" class="nav-link" data-scroll-target="#computing-classification-metrics-r-python">4. Computing Classification Metrics (R &amp; Python)</a>
+  <ul class="collapse">
+  <li><a href="#confusion-matrix" id="toc-confusion-matrix" class="nav-link" data-scroll-target="#confusion-matrix">4.1 Confusion Matrix</a></li>
+  <li><a href="#r-confusion-matrix" id="toc-r-confusion-matrix" class="nav-link" data-scroll-target="#r-confusion-matrix">R: Confusion Matrix</a></li>
+  <li><a href="#accuracy" id="toc-accuracy" class="nav-link" data-scroll-target="#accuracy">4.2 Accuracy</a></li>
+  <li><a href="#precision-and-recall" id="toc-precision-and-recall" class="nav-link" data-scroll-target="#precision-and-recall">4.3 Precision and Recall</a></li>
+  <li><a href="#f1-score" id="toc-f1-score" class="nav-link" data-scroll-target="#f1-score">4.4 F1 Score</a></li>
+  <li><a href="#a-note-on-thresholds-conceptual-only" id="toc-a-note-on-thresholds-conceptual-only" class="nav-link" data-scroll-target="#a-note-on-thresholds-conceptual-only">4.5 A Note on Thresholds (Conceptual Only)</a></li>
+  </ul></li>
+  <li><a href="#regression-metrics-what-changes-when-the-target-is-numeric" id="toc-regression-metrics-what-changes-when-the-target-is-numeric" class="nav-link" data-scroll-target="#regression-metrics-what-changes-when-the-target-is-numeric">5. Regression Metrics — What Changes When the Target Is Numeric</a>
+  <ul class="collapse">
+  <li><a href="#why-accuracy-does-not-apply" id="toc-why-accuracy-does-not-apply" class="nav-link" data-scroll-target="#why-accuracy-does-not-apply">5.1 Why Accuracy Does Not Apply</a></li>
+  <li><a href="#absolute-error-vs-squared-error" id="toc-absolute-error-vs-squared-error" class="nav-link" data-scroll-target="#absolute-error-vs-squared-error">5.2 Absolute Error vs Squared Error</a></li>
+  <li><a href="#choosing-between-mae-and-rmse" id="toc-choosing-between-mae-and-rmse" class="nav-link" data-scroll-target="#choosing-between-mae-and-rmse">5.3 Choosing Between MAE and RMSE</a></li>
+  <li><a href="#connecting-back-to-your-project-dataset" id="toc-connecting-back-to-your-project-dataset" class="nav-link" data-scroll-target="#connecting-back-to-your-project-dataset">5.4 Connecting Back to Your Project Dataset</a></li>
+  </ul></li>
+  </ul>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="week4.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Week4: Metrics and Naive Bayes</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="why-evaluation-deserves-its-own-discussion" class="level2">
+<h2 class="anchored" data-anchor-id="why-evaluation-deserves-its-own-discussion">1. Why Evaluation Deserves Its Own Discussion</h2>
+<p>So far in this module, you have trained some models and understood their behavior.</p>
+<p>In doing so, we often report <strong>accuracy</strong> — not because it is the best metric, but because it is simple and easy to interpret at first glance.</p>
+<p>However, this raises an important question:</p>
+<blockquote class="blockquote">
+<p><em>How do we decide whether a model is actually “good”?</em></p>
+</blockquote>
+<p>Answering this requires more than training a model.<br>
+In addition to other factors, it requires <strong>choosing the right way to evaluate it</strong>.</p>
+<hr>
+<section id="models-do-not-speak-for-themselves" class="level3">
+<h3 class="anchored" data-anchor-id="models-do-not-speak-for-themselves">1.1 Models Do Not Speak for Themselves</h3>
+<p>A trained model does not tell us:</p>
+<ul>
+<li>whether it is reliable,</li>
+<li>whether it generalises,</li>
+<li>or whether it is useful in practice.</li>
+</ul>
+<p>All of these judgements come from <strong>evaluation metrics</strong>.</p>
+<p>Crucially:</p>
+<blockquote class="blockquote">
+<p><strong>Different metrics answer different questions.</strong></p>
+</blockquote>
+<p>Using the wrong metric can:</p>
+<ul>
+<li>make a weak model look strong,</li>
+<li>hide important failure modes,</li>
+<li>or encourage the wrong modelling decisions.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="classification-evaluation-confusion-matrix-core-metrics" class="level2">
+<h2 class="anchored" data-anchor-id="classification-evaluation-confusion-matrix-core-metrics">2. Classification Evaluation — Confusion Matrix &amp; Core Metrics</h2>
+<p>In a <strong>classification task</strong>, a model predicts a <em>class label</em> (e.g.&nbsp;<code>yes</code> / <code>no</code>, <code>positive</code> / <code>negative</code>).</p>
+<p>To evaluate such predictions meaningfully, we must first understand <strong>how predictions can be right or wrong</strong>.</p>
+<hr>
+<section id="the-confusion-matrix-the-foundation" class="level3">
+<h3 class="anchored" data-anchor-id="the-confusion-matrix-the-foundation">2.1 The Confusion Matrix: The Foundation</h3>
+<p>At the heart of classification evaluation lies the <strong>confusion matrix</strong>.</p>
+<p>It compares: - what the model <em>predicted</em>, - against what actually <em>happened</em>.</p>
+<p>For a binary classification problem, there are four possible outcomes:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th></th>
+<th>Actual: Yes</th>
+<th>Actual: No</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Predicted: Yes</strong></td>
+<td>True Positive (TP)</td>
+<td>False Positive (FP)</td>
+</tr>
+<tr class="even">
+<td><strong>Predicted: No</strong></td>
+<td>False Negative (FN)</td>
+<td>True Negative (TN)</td>
+</tr>
+</tbody>
+</table>
+<p>Every classification metric is derived from these four quantities.</p>
+<hr>
+</section>
+<section id="interpreting-the-outcomes" class="level3">
+<h3 class="anchored" data-anchor-id="interpreting-the-outcomes">2.2 Interpreting the Outcomes</h3>
+<p>Understanding these outcomes is more important than memorising formulas.</p>
+<ul>
+<li><p><strong>True Positive (TP)</strong><br>
+The model predicted <em>yes</em>, and the outcome was <em>yes</em>.</p></li>
+<li><p><strong>False Positive (FP)</strong><br>
+The model predicted <em>yes</em>, but the outcome was <em>no</em>.<br>
+<em>(A false alarm.)</em></p></li>
+<li><p><strong>False Negative (FN)</strong><br>
+The model predicted <em>no</em>, but the outcome was <em>yes</em>.<br>
+<em>(A missed case.)</em></p></li>
+<li><p><strong>True Negative (TN)</strong><br>
+The model predicted <em>no</em>, and the outcome was <em>no</em>.</p></li>
+</ul>
+<p>Different applications care about these errors <strong>very differently</strong>.</p>
+<hr>
+</section>
+<section id="accuracy-the-simplest-metric" class="level3">
+<h3 class="anchored" data-anchor-id="accuracy-the-simplest-metric">2.3 Accuracy: The Simplest Metric</h3>
+<p><strong>Accuracy</strong> measures how often the model is correct overall. Conceptually:</p>
+<blockquote class="blockquote">
+<p><em>Out of all predictions, how many were correct?</em></p>
+</blockquote>
+<p>Accuracy is intuitive — but also dangerous.</p>
+<hr>
+</section>
+<section id="why-accuracy-can-be-misleading" class="level3">
+<h3 class="anchored" data-anchor-id="why-accuracy-can-be-misleading">Why Accuracy Can Be Misleading</h3>
+<p>Accuracy treats all errors equally. This becomes problematic when:</p>
+<ul>
+<li>the dataset is <strong>imbalanced</strong>,</li>
+<li>one class dominates the data,</li>
+<li>some mistakes are more costly than others.</li>
+</ul>
+<p>A model that predicts the majority class every time may achieve high accuracy while being practically useless.</p>
+<hr>
+</section>
+<section id="precision-recall-and-f1-score-a-loan-approval-example" class="level3">
+<h3 class="anchored" data-anchor-id="precision-recall-and-f1-score-a-loan-approval-example">2.4 Precision, Recall, and F1 Score: A Loan Approval Example</h3>
+<p>Consider a loan default prediction model used by a bank.</p>
+<ul>
+<li><strong>Positive (“yes”)</strong> = the applicant will <strong>default</strong></li>
+<li><strong>Negative (“no”)</strong> = the applicant will <strong>repay</strong></li>
+</ul>
+<p>This framing lets us interpret each metric in business terms.</p>
+<hr>
+<section id="precision-are-default-warnings-trustworthy" class="level4">
+<h4 class="anchored" data-anchor-id="precision-are-default-warnings-trustworthy">Precision: Are Default Warnings Trustworthy?</h4>
+<p><strong>Precision</strong> answers:</p>
+<blockquote class="blockquote">
+<p><em>When the model predicts that an applicant will default, how often is it correct?</em></p>
+</blockquote>
+<p>Suppose the model flags <strong>100 applicants as likely to default</strong>:</p>
+<ul>
+<li>80 actually default</li>
+<li>20 would have repaid</li>
+</ul>
+<p><strong>Precision = 80%</strong></p>
+<p>High precision means:</p>
+<ul>
+<li>few <strong>false positives</strong>,</li>
+<li>fewer safe customers wrongly rejected,</li>
+<li>risk flags can be trusted.</li>
+</ul>
+<p>Low precision means the bank loses good customers by rejecting loans unnecessarily.</p>
+<hr>
+</section>
+<section id="recall-how-many-risky-loans-did-we-catch" class="level4">
+<h4 class="anchored" data-anchor-id="recall-how-many-risky-loans-did-we-catch">Recall: How Many Risky Loans Did We Catch?</h4>
+<p><strong>Recall</strong> answers:</p>
+<blockquote class="blockquote">
+<p><em>Of all applicants who will actually default, how many did the model identify?</em></p>
+</blockquote>
+<p>Suppose <strong>200 applicants would eventually default</strong>:</p>
+<ul>
+<li>the model flags 80 of them,</li>
+<li>120 risky applicants are missed.</li>
+</ul>
+<p><strong>Recall = 40%</strong></p>
+<p>High recall means:</p>
+<ul>
+<li>few <strong>false negatives</strong>,</li>
+<li>fewer bad loans slip through,</li>
+<li>lower financial losses.</li>
+</ul>
+<p>Low recall means the bank approves many loans that later default.</p>
+<hr>
+</section>
+<section id="the-precisionrecall-trade-off" class="level4">
+<h4 class="anchored" data-anchor-id="the-precisionrecall-trade-off">The Precision–Recall Trade-off</h4>
+<p>Precision and recall often conflict. Which is preferable depends on context:</p>
+<ul>
+<li>Risk-averse institutions prioritize <strong>recall</strong></li>
+<li>Growth-focused institutions prioritize <strong>precision</strong></li>
+</ul>
+<p>This choice reflects business values, not algorithmic correctness.</p>
+<hr>
+</section>
+<section id="f1-score-a-balanced-summary" class="level4">
+<h4 class="anchored" data-anchor-id="f1-score-a-balanced-summary">F1 Score: A Balanced Summary</h4>
+<p>The <strong>F1 score</strong> combines precision and recall into a single metric. It is useful when:</p>
+<ul>
+<li>defaults are rare (class imbalance),</li>
+<li>both rejecting good customers and approving bad ones are costly,</li>
+<li>accuracy alone is misleading.</li>
+</ul>
+<p>However, using F1 implicitly assumes that <strong>false positives and false negatives matter equally</strong>—a judgement that may or may not align with real-world priorities.</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="naive-bayes-demo-classification-evaluation-in-practice" class="level2">
+<h2 class="anchored" data-anchor-id="naive-bayes-demo-classification-evaluation-in-practice">3. Naive Bayes Demo — Classification Evaluation in Practice</h2>
+<p>We now apply the ideas from the previous section to a <strong>concrete example</strong> using Naive Bayes. Our goal here is <strong>not</strong> to build a high-performing model. It is to see how <strong>evaluation metrics behave</strong> in practice.</p>
+<hr>
+<section id="dataset-and-feature-choice" class="level3">
+<h3 class="anchored" data-anchor-id="dataset-and-feature-choice">3.1 Dataset and Feature Choice</h3>
+<p>For this demonstration, we use the same <strong>UCI Bank Marketing dataset</strong>.</p>
+<p>To keep the demo interpretable, we restrict ourselves to a <strong>small set of categorical features</strong>:</p>
+<ul>
+<li><code>job</code></li>
+<li><code>education</code></li>
+<li><code>housing</code></li>
+<li><code>loan</code></li>
+<li><code>contact</code></li>
+</ul>
+<p>This is a <strong>modelling choice</strong>, not a requirement.</p>
+</section>
+<section id="loading-data" class="level3">
+<h3 class="anchored" data-anchor-id="loading-data">3.2 Loading Data</h3>
+<p>We reuse the same train/validation split introduced earlier.</p>
+<section id="r-loading-data-and-creating-splits" class="level4">
+<h4 class="anchored" data-anchor-id="r-loading-data-and-creating-splits">R: Loading Data and Creating Splits</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>bank <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"data/raw/bank-additional.csv"</span>, <span class="at">sep =</span> <span class="st">";"</span>, <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>model_data <span class="ot">&lt;-</span> bank <span class="sc">%&gt;%</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>duration) <span class="sc">%&gt;%</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">y =</span> <span class="fu">as.factor</span>(y))</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(model_data)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>idx <span class="ot">&lt;-</span> <span class="fu">sample</span>(n)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>train_idx <span class="ot">&lt;-</span> idx[<span class="dv">1</span><span class="sc">:</span><span class="fu">floor</span>(<span class="fl">0.6</span> <span class="sc">*</span> n)]</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>val_idx   <span class="ot">&lt;-</span> idx[(<span class="fu">floor</span>(<span class="fl">0.6</span> <span class="sc">*</span> n) <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">floor</span>(<span class="fl">0.8</span> <span class="sc">*</span> n)]</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>test_idx  <span class="ot">&lt;-</span> idx[(<span class="fu">floor</span>(<span class="fl">0.8</span> <span class="sc">*</span> n) <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span>n]</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>train_data <span class="ot">&lt;-</span> model_data[train_idx, ]</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>val_data   <span class="ot">&lt;-</span> model_data[val_idx, ]</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>test_data  <span class="ot">&lt;-</span> model_data[test_idx, ]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="python-loading-data-and-creating-splits" class="level4">
+<h4 class="anchored" data-anchor-id="python-loading-data-and-creating-splits">Python: Loading Data and Creating Splits</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> train_test_split</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.compose <span class="im">import</span> ColumnTransformer</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.preprocessing <span class="im">import</span> OneHotEncoder</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.pipeline <span class="im">import</span> Pipeline</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>bank <span class="op">=</span> pd.read_csv(<span class="st">"data/raw/bank-additional.csv"</span>, sep<span class="op">=</span><span class="st">";"</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>model_data <span class="op">=</span> bank.drop(columns<span class="op">=</span>[<span class="st">"duration"</span>])</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>model_data[<span class="st">"y"</span>] <span class="op">=</span> model_data[<span class="st">"y"</span>].astype(<span class="st">"category"</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Split features / target</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> model_data.drop(columns<span class="op">=</span>[<span class="st">"y"</span>])</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> model_data[<span class="st">"y"</span>]</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Identify column types</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>cat_cols <span class="op">=</span> X.select_dtypes(include<span class="op">=</span>[<span class="st">"object"</span>, <span class="st">"category"</span>]).columns</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>num_cols <span class="op">=</span> X.select_dtypes(exclude<span class="op">=</span>[<span class="st">"object"</span>, <span class="st">"category"</span>]).columns</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Preprocessing: encode categoricals, pass through numerics</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>preprocess <span class="op">=</span> ColumnTransformer(</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    transformers<span class="op">=</span>[</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"num"</span>, <span class="st">"passthrough"</span>, num_cols),</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"cat"</span>, OneHotEncoder(handle_unknown<span class="op">=</span><span class="st">"ignore"</span>), cat_cols),</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>X_train, X_temp, y_train, y_temp <span class="op">=</span> train_test_split(</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    X, y, test_size<span class="op">=</span><span class="fl">0.4</span>, random_state<span class="op">=</span><span class="dv">42</span>, stratify<span class="op">=</span>y</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>X_val, X_test, y_val, y_test <span class="op">=</span> train_test_split(</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    X_temp, y_temp, test_size<span class="op">=</span><span class="fl">0.5</span>, random_state<span class="op">=</span><span class="dv">42</span>, stratify<span class="op">=</span>y_temp</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<hr>
+</section>
+</section>
+<section id="preparing-the-data" class="level3">
+<h3 class="anchored" data-anchor-id="preparing-the-data">3.3 Preparing the Data</h3>
+<section id="r-select-features-and-split-data" class="level4">
+<h4 class="anchored" data-anchor-id="r-select-features-and-split-data">R: Select Features and Split Data</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(e1071)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>features <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"job"</span>, <span class="st">"education"</span>, <span class="st">"housing"</span>, <span class="st">"loan"</span>, <span class="st">"contact"</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>nb_train <span class="ot">&lt;-</span> train_data[, <span class="fu">c</span>(features, <span class="st">"y"</span>)]</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>nb_val   <span class="ot">&lt;-</span> val_data[, <span class="fu">c</span>(features, <span class="st">"y"</span>)]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+What this code is doing
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Selects a small subset of categorical predictors.</p>
+<p>Uses the existing training and validation splits.</p>
+<p>Keeps the target variable unchanged.</p>
+<p>Why this matters:</p>
+<p>Fewer features make probability estimates easier to interpret.</p>
+<p>This avoids accidental leakage or overfitting.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="python-select-features-and-split-data" class="level4">
+<h4 class="anchored" data-anchor-id="python-select-features-and-split-data">Python: Select Features and Split Data</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.naive_bayes <span class="im">import</span> CategoricalNB</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.preprocessing <span class="im">import</span> OrdinalEncoder</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>features <span class="op">=</span> [<span class="st">"job"</span>, <span class="st">"education"</span>, <span class="st">"housing"</span>, <span class="st">"loan"</span>, <span class="st">"contact"</span>]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>X_train_nb <span class="op">=</span> X_train[features]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>X_val_nb   <span class="op">=</span> X_val[features]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+What this code is doing
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Restricts the feature set to categorical variables.</p>
+<p>Prepares separate training and validation inputs.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="training-a-naive-bayes-classifier" class="level3">
+<h3 class="anchored" data-anchor-id="training-a-naive-bayes-classifier">3.4 Training a Naive Bayes Classifier</h3>
+<section id="r-training-the-model" class="level4">
+<h4 class="anchored" data-anchor-id="r-training-the-model">R: Training the Model</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>nb_model <span class="ot">&lt;-</span> <span class="fu">naiveBayes</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  y <span class="sc">~</span> .,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> nb_train</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+What this code is doing
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Fits a Naive Bayes classifier.</p>
+<p>Estimates class priors and conditional probabilities.</p>
+<p>Assumes conditional independence between features.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="python-training-the-model" class="level4">
+<h4 class="anchored" data-anchor-id="python-training-the-model">Python: Training the Model</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>nb_model <span class="op">=</span> Pipeline(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    steps<span class="op">=</span>[</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"enc"</span>, OrdinalEncoder()),</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"nb"</span>, CategoricalNB())</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>nb_model.fit(X_train_nb, y_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<style>#sk-container-id-1 {
+  /* Definition of color scheme common for light and dark mode */
+  --sklearn-color-text: #000;
+  --sklearn-color-text-muted: #666;
+  --sklearn-color-line: gray;
+  /* Definition of color scheme for unfitted estimators */
+  --sklearn-color-unfitted-level-0: #fff5e6;
+  --sklearn-color-unfitted-level-1: #f6e4d2;
+  --sklearn-color-unfitted-level-2: #ffe0b3;
+  --sklearn-color-unfitted-level-3: chocolate;
+  /* Definition of color scheme for fitted estimators */
+  --sklearn-color-fitted-level-0: #f0f8ff;
+  --sklearn-color-fitted-level-1: #d4ebff;
+  --sklearn-color-fitted-level-2: #b3dbfd;
+  --sklearn-color-fitted-level-3: cornflowerblue;
+}
+
+#sk-container-id-1.light {
+  /* Specific color for light theme */
+  --sklearn-color-text-on-default-background: black;
+  --sklearn-color-background: white;
+  --sklearn-color-border-box: black;
+  --sklearn-color-icon: #696969;
+}
+
+#sk-container-id-1.dark {
+  --sklearn-color-text-on-default-background: white;
+  --sklearn-color-background: #111;
+  --sklearn-color-border-box: white;
+  --sklearn-color-icon: #878787;
+}
+
+#sk-container-id-1 {
+  color: var(--sklearn-color-text);
+}
+
+#sk-container-id-1 pre {
+  padding: 0;
+}
+
+#sk-container-id-1 input.sk-hidden--visually {
+  border: 0;
+  clip: rect(1px 1px 1px 1px);
+  clip: rect(1px, 1px, 1px, 1px);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
+#sk-container-id-1 div.sk-dashed-wrapped {
+  border: 1px dashed var(--sklearn-color-line);
+  margin: 0 0.4em 0.5em 0.4em;
+  box-sizing: border-box;
+  padding-bottom: 0.4em;
+  background-color: var(--sklearn-color-background);
+}
+
+#sk-container-id-1 div.sk-container {
+  /* jupyter's `normalize.less` sets `[hidden] { display: none; }`
+     but bootstrap.min.css set `[hidden] { display: none !important; }`
+     so we also need the `!important` here to be able to override the
+     default hidden behavior on the sphinx rendered scikit-learn.org.
+     See: https://github.com/scikit-learn/scikit-learn/issues/21755 */
+  display: inline-block !important;
+  position: relative;
+}
+
+#sk-container-id-1 div.sk-text-repr-fallback {
+  display: none;
+}
+
+div.sk-parallel-item,
+div.sk-serial,
+div.sk-item {
+  /* draw centered vertical line to link estimators */
+  background-image: linear-gradient(var(--sklearn-color-text-on-default-background), var(--sklearn-color-text-on-default-background));
+  background-size: 2px 100%;
+  background-repeat: no-repeat;
+  background-position: center center;
+}
+
+/* Parallel-specific style estimator block */
+
+#sk-container-id-1 div.sk-parallel-item::after {
+  content: "";
+  width: 100%;
+  border-bottom: 2px solid var(--sklearn-color-text-on-default-background);
+  flex-grow: 1;
+}
+
+#sk-container-id-1 div.sk-parallel {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background-color: var(--sklearn-color-background);
+  position: relative;
+}
+
+#sk-container-id-1 div.sk-parallel-item {
+  display: flex;
+  flex-direction: column;
+}
+
+#sk-container-id-1 div.sk-parallel-item:first-child::after {
+  align-self: flex-end;
+  width: 50%;
+}
+
+#sk-container-id-1 div.sk-parallel-item:last-child::after {
+  align-self: flex-start;
+  width: 50%;
+}
+
+#sk-container-id-1 div.sk-parallel-item:only-child::after {
+  width: 0;
+}
+
+/* Serial-specific style estimator block */
+
+#sk-container-id-1 div.sk-serial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--sklearn-color-background);
+  padding-right: 1em;
+  padding-left: 1em;
+}
+
+
+/* Toggleable style: style used for estimator/Pipeline/ColumnTransformer box that is
+clickable and can be expanded/collapsed.
+- Pipeline and ColumnTransformer use this feature and define the default style
+- Estimators will overwrite some part of the style using the `sk-estimator` class
+*/
+
+/* Pipeline and ColumnTransformer style (default) */
+
+#sk-container-id-1 div.sk-toggleable {
+  /* Default theme specific background. It is overwritten whether we have a
+  specific estimator or a Pipeline/ColumnTransformer */
+  background-color: var(--sklearn-color-background);
+}
+
+/* Toggleable label */
+#sk-container-id-1 label.sk-toggleable__label {
+  cursor: pointer;
+  display: flex;
+  width: 100%;
+  margin-bottom: 0;
+  padding: 0.5em;
+  box-sizing: border-box;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+#sk-container-id-1 label.sk-toggleable__label .caption {
+  font-size: 0.6rem;
+  font-weight: lighter;
+  color: var(--sklearn-color-text-muted);
+}
+
+#sk-container-id-1 label.sk-toggleable__label-arrow:before {
+  /* Arrow on the left of the label */
+  content: "▸";
+  float: left;
+  margin-right: 0.25em;
+  color: var(--sklearn-color-icon);
+}
+
+#sk-container-id-1 label.sk-toggleable__label-arrow:hover:before {
+  color: var(--sklearn-color-text);
+}
+
+/* Toggleable content - dropdown */
+
+#sk-container-id-1 div.sk-toggleable__content {
+  display: none;
+  text-align: left;
+  /* unfitted */
+  background-color: var(--sklearn-color-unfitted-level-0);
+}
+
+#sk-container-id-1 div.sk-toggleable__content.fitted {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-0);
+}
+
+#sk-container-id-1 div.sk-toggleable__content pre {
+  margin: 0.2em;
+  border-radius: 0.25em;
+  color: var(--sklearn-color-text);
+  /* unfitted */
+  background-color: var(--sklearn-color-unfitted-level-0);
+}
+
+#sk-container-id-1 div.sk-toggleable__content.fitted pre {
+  /* unfitted */
+  background-color: var(--sklearn-color-fitted-level-0);
+}
+
+#sk-container-id-1 input.sk-toggleable__control:checked~div.sk-toggleable__content {
+  /* Expand drop-down */
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+#sk-container-id-1 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {
+  content: "▾";
+}
+
+/* Pipeline/ColumnTransformer-specific style */
+
+#sk-container-id-1 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {
+  color: var(--sklearn-color-text);
+  background-color: var(--sklearn-color-unfitted-level-2);
+}
+
+#sk-container-id-1 div.sk-label.fitted input.sk-toggleable__control:checked~label.sk-toggleable__label {
+  background-color: var(--sklearn-color-fitted-level-2);
+}
+
+/* Estimator-specific style */
+
+/* Colorize estimator box */
+#sk-container-id-1 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {
+  /* unfitted */
+  background-color: var(--sklearn-color-unfitted-level-2);
+}
+
+#sk-container-id-1 div.sk-estimator.fitted input.sk-toggleable__control:checked~label.sk-toggleable__label {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-2);
+}
+
+#sk-container-id-1 div.sk-label label.sk-toggleable__label,
+#sk-container-id-1 div.sk-label label {
+  /* The background is the default theme color */
+  color: var(--sklearn-color-text-on-default-background);
+}
+
+/* On hover, darken the color of the background */
+#sk-container-id-1 div.sk-label:hover label.sk-toggleable__label {
+  color: var(--sklearn-color-text);
+  background-color: var(--sklearn-color-unfitted-level-2);
+}
+
+/* Label box, darken color on hover, fitted */
+#sk-container-id-1 div.sk-label.fitted:hover label.sk-toggleable__label.fitted {
+  color: var(--sklearn-color-text);
+  background-color: var(--sklearn-color-fitted-level-2);
+}
+
+/* Estimator label */
+
+#sk-container-id-1 div.sk-label label {
+  font-family: monospace;
+  font-weight: bold;
+  line-height: 1.2em;
+}
+
+#sk-container-id-1 div.sk-label-container {
+  text-align: center;
+}
+
+/* Estimator-specific */
+#sk-container-id-1 div.sk-estimator {
+  font-family: monospace;
+  border: 1px dotted var(--sklearn-color-border-box);
+  border-radius: 0.25em;
+  box-sizing: border-box;
+  margin-bottom: 0.5em;
+  /* unfitted */
+  background-color: var(--sklearn-color-unfitted-level-0);
+}
+
+#sk-container-id-1 div.sk-estimator.fitted {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-0);
+}
+
+/* on hover */
+#sk-container-id-1 div.sk-estimator:hover {
+  /* unfitted */
+  background-color: var(--sklearn-color-unfitted-level-2);
+}
+
+#sk-container-id-1 div.sk-estimator.fitted:hover {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-2);
+}
+
+/* Specification for estimator info (e.g. "i" and "?") */
+
+/* Common style for "i" and "?" */
+
+.sk-estimator-doc-link,
+a:link.sk-estimator-doc-link,
+a:visited.sk-estimator-doc-link {
+  float: right;
+  font-size: smaller;
+  line-height: 1em;
+  font-family: monospace;
+  background-color: var(--sklearn-color-unfitted-level-0);
+  border-radius: 1em;
+  height: 1em;
+  width: 1em;
+  text-decoration: none !important;
+  margin-left: 0.5em;
+  text-align: center;
+  /* unfitted */
+  border: var(--sklearn-color-unfitted-level-3) 1pt solid;
+  color: var(--sklearn-color-unfitted-level-3);
+}
+
+.sk-estimator-doc-link.fitted,
+a:link.sk-estimator-doc-link.fitted,
+a:visited.sk-estimator-doc-link.fitted {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-0);
+  border: var(--sklearn-color-fitted-level-3) 1pt solid;
+  color: var(--sklearn-color-fitted-level-3);
+}
+
+/* On hover */
+div.sk-estimator:hover .sk-estimator-doc-link:hover,
+.sk-estimator-doc-link:hover,
+div.sk-label-container:hover .sk-estimator-doc-link:hover,
+.sk-estimator-doc-link:hover {
+  /* unfitted */
+  background-color: var(--sklearn-color-unfitted-level-3);
+  border: var(--sklearn-color-fitted-level-0) 1pt solid;
+  color: var(--sklearn-color-unfitted-level-0);
+  text-decoration: none;
+}
+
+div.sk-estimator.fitted:hover .sk-estimator-doc-link.fitted:hover,
+.sk-estimator-doc-link.fitted:hover,
+div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
+.sk-estimator-doc-link.fitted:hover {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-3);
+  border: var(--sklearn-color-fitted-level-0) 1pt solid;
+  color: var(--sklearn-color-fitted-level-0);
+  text-decoration: none;
+}
+
+/* Span, style for the box shown on hovering the info icon */
+.sk-estimator-doc-link span {
+  display: none;
+  z-index: 9999;
+  position: relative;
+  font-weight: normal;
+  right: .2ex;
+  padding: .5ex;
+  margin: .5ex;
+  width: min-content;
+  min-width: 20ex;
+  max-width: 50ex;
+  color: var(--sklearn-color-text);
+  box-shadow: 2pt 2pt 4pt #999;
+  /* unfitted */
+  background: var(--sklearn-color-unfitted-level-0);
+  border: .5pt solid var(--sklearn-color-unfitted-level-3);
+}
+
+.sk-estimator-doc-link.fitted span {
+  /* fitted */
+  background: var(--sklearn-color-fitted-level-0);
+  border: var(--sklearn-color-fitted-level-3);
+}
+
+.sk-estimator-doc-link:hover span {
+  display: block;
+}
+
+/* "?"-specific style due to the `<a>` HTML tag */
+
+#sk-container-id-1 a.estimator_doc_link {
+  float: right;
+  font-size: 1rem;
+  line-height: 1em;
+  font-family: monospace;
+  background-color: var(--sklearn-color-unfitted-level-0);
+  border-radius: 1rem;
+  height: 1rem;
+  width: 1rem;
+  text-decoration: none;
+  /* unfitted */
+  color: var(--sklearn-color-unfitted-level-1);
+  border: var(--sklearn-color-unfitted-level-1) 1pt solid;
+}
+
+#sk-container-id-1 a.estimator_doc_link.fitted {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-0);
+  border: var(--sklearn-color-fitted-level-1) 1pt solid;
+  color: var(--sklearn-color-fitted-level-1);
+}
+
+/* On hover */
+#sk-container-id-1 a.estimator_doc_link:hover {
+  /* unfitted */
+  background-color: var(--sklearn-color-unfitted-level-3);
+  color: var(--sklearn-color-background);
+  text-decoration: none;
+}
+
+#sk-container-id-1 a.estimator_doc_link.fitted:hover {
+  /* fitted */
+  background-color: var(--sklearn-color-fitted-level-3);
+}
+
+.estimator-table {
+    font-family: monospace;
+}
+
+.estimator-table summary {
+    padding: .5rem;
+    cursor: pointer;
+}
+
+.estimator-table summary::marker {
+    font-size: 0.7rem;
+}
+
+.estimator-table details[open] {
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+    padding-bottom: 0.3rem;
+}
+
+.estimator-table .parameters-table {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 0;
+}
+
+.estimator-table .parameters-table tr:nth-child(odd) {
+    background-color: #fff;
+}
+
+.estimator-table .parameters-table tr:nth-child(even) {
+    background-color: #f6f6f6;
+}
+
+.estimator-table .parameters-table tr:hover {
+    background-color: #e0e0e0;
+}
+
+.estimator-table table td {
+    border: 1px solid rgba(106, 105, 104, 0.232);
+}
+
+/*
+    `table td`is set in notebook with right text-align.
+    We need to overwrite it.
+*/
+.estimator-table table td.param {
+    text-align: left;
+    position: relative;
+    padding: 0;
+}
+
+.user-set td {
+    color:rgb(255, 94, 0);
+    text-align: left !important;
+}
+
+.user-set td.value {
+    color:rgb(255, 94, 0);
+    background-color: transparent;
+}
+
+.default td {
+    color: black;
+    text-align: left !important;
+}
+
+.user-set td i,
+.default td i {
+    color: black;
+}
+
+/*
+    Styles for parameter documentation links
+    We need styling for visited so jupyter doesn't overwrite it
+*/
+a.param-doc-link,
+a.param-doc-link:link,
+a.param-doc-link:visited {
+    text-decoration: underline dashed;
+    text-underline-offset: .3em;
+    color: inherit;
+    display: block;
+    padding: .5em;
+}
+
+/* "hack" to make the entire area of the cell containing the link clickable */
+a.param-doc-link::before {
+    position: absolute;
+    content: "";
+    inset: 0;
+}
+
+.param-doc-description {
+    display: none;
+    position: absolute;
+    z-index: 9999;
+    left: 0;
+    padding: .5ex;
+    margin-left: 1.5em;
+    color: var(--sklearn-color-text);
+    box-shadow: .3em .3em .4em #999;
+    width: max-content;
+    text-align: left;
+    max-height: 10em;
+    overflow-y: auto;
+
+    /* unfitted */
+    background: var(--sklearn-color-unfitted-level-0);
+    border: thin solid var(--sklearn-color-unfitted-level-3);
+}
+
+/* Fitted state for parameter tooltips */
+.fitted .param-doc-description {
+    /* fitted */
+    background: var(--sklearn-color-fitted-level-0);
+    border: thin solid var(--sklearn-color-fitted-level-3);
+}
+
+.param-doc-link:hover .param-doc-description {
+    display: block;
+}
+
+.copy-paste-icon {
+    background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48IS0tIUZvbnQgQXdlc29tZSBGcmVlIDYuNy4yIGJ5IEBmb250YXdlc29tZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tIExpY2Vuc2UgLSBodHRwczovL2ZvbnRhd2Vzb21lLmNvbS9saWNlbnNlL2ZyZWUgQ29weXJpZ2h0IDIwMjUgRm9udGljb25zLCBJbmMuLS0+PHBhdGggZD0iTTIwOCAwTDMzMi4xIDBjMTIuNyAwIDI0LjkgNS4xIDMzLjkgMTQuMWw2Ny45IDY3LjljOSA5IDE0LjEgMjEuMiAxNC4xIDMzLjlMNDQ4IDMzNmMwIDI2LjUtMjEuNSA0OC00OCA0OGwtMTkyIDBjLTI2LjUgMC00OC0yMS41LTQ4LTQ4bDAtMjg4YzAtMjYuNSAyMS41LTQ4IDQ4LTQ4ek00OCAxMjhsODAgMCAwIDY0LTY0IDAgMCAyNTYgMTkyIDAgMC0zMiA2NCAwIDAgNDhjMCAyNi41LTIxLjUgNDgtNDggNDhMNDggNTEyYy0yNi41IDAtNDgtMjEuNS00OC00OEwwIDE3NmMwLTI2LjUgMjEuNS00OCA0OC00OHoiLz48L3N2Zz4=);
+    background-repeat: no-repeat;
+    background-size: 14px 14px;
+    background-position: 0;
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+</style><div id="sk-container-id-1" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>Pipeline(steps=[('enc', OrdinalEncoder()), ('nb', CategoricalNB())])</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br>On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden=""><div class="sk-item sk-dashed-wrapped"><div class="sk-label-container"><div class="sk-label fitted sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-1" type="checkbox"><label for="sk-estimator-id-1" class="sk-toggleable__label fitted sk-toggleable__label-arrow"><div><div>Pipeline</div></div><div><a class="sk-estimator-doc-link fitted" rel="noreferrer" target="_blank" href="https://scikit-learn.org/1.8/modules/generated/sklearn.pipeline.Pipeline.html">?<span>Documentation for Pipeline</span></a><span class="sk-estimator-doc-link fitted">i<span>Fitted</span></span></div></label><div class="sk-toggleable__content fitted" data-param-prefix="">
+        <div class="estimator-table">
+            <details>
+                <summary>Parameters</summary>
+                
+<table class="parameters-table caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<tbody>
+<tr class="user-set odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.pipeline.Pipeline.html#:~:text=steps,-list%20of%20tuples" class="param-doc-link" rel="noreferrer" target="_blank">steps <span class="param-doc-description">steps: list of tuples<br>
+<br>
+List of (name of step, estimator) tuples that are to be chained in<br>
+sequential order. To be compatible with the scikit-learn API, all steps<br>
+must define `fit`. All non-last steps must also define `transform`. See<br>
+:ref:`Combining Estimators <combining_estimators>` for more details.</combining_estimators></span></a></td>
+<td class="value">[('enc', ...), ('nb', ...)]</td>
+</tr>
+<tr class="default even">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.pipeline.Pipeline.html#:~:text=transform_input,-list%20of%20str%2C%20default%3DNone" class="param-doc-link" rel="noreferrer" target="_blank">transform_input <span class="param-doc-description">transform_input: list of str, default=None<br>
+<br>
+The names of the :term:`metadata` parameters that should be transformed by the<br>
+pipeline before passing it to the step consuming it.<br>
+<br>
+This enables transforming some input arguments to ``fit`` (other than ``X``)<br>
+to be transformed by the steps of the pipeline up to the step which requires<br>
+them. Requirement is defined via :ref:`metadata routing <metadata_routing>`.<br>
+For instance, this can be used to pass a validation set through the pipeline.<br>
+<br>
+You can only set this if metadata routing is enabled, which you<br>
+can enable using ``sklearn.set_config(enable_metadata_routing=True)``.<br>
+<br>
+.. versionadded:: 1.6</metadata_routing></span></a></td>
+<td class="value">None</td>
+</tr>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.pipeline.Pipeline.html#:~:text=memory,-str%20or%20object%20with%20the%20joblib.Memory%20interface%2C%20default%3DNone" class="param-doc-link" rel="noreferrer" target="_blank">memory <span class="param-doc-description">memory: str or object with the joblib.Memory interface, default=None<br>
+<br>
+Used to cache the fitted transformers of the pipeline. The last step<br>
+will never be cached, even if it is a transformer. By default, no<br>
+caching is performed. If a string is given, it is the path to the<br>
+caching directory. Enabling caching triggers a clone of the transformers<br>
+before fitting. Therefore, the transformer instance given to the<br>
+pipeline cannot be inspected directly. Use the attribute ``named_steps``<br>
+or ``steps`` to inspect estimators within the pipeline. Caching the<br>
+transformers is advantageous when fitting is time consuming. See<br>
+:ref:`sphx_glr_auto_examples_neighbors_plot_caching_nearest_neighbors.py`<br>
+for an example on how to enable caching.</span></a></td>
+<td class="value">None</td>
+</tr>
+<tr class="default even">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.pipeline.Pipeline.html#:~:text=verbose,-bool%2C%20default%3DFalse" class="param-doc-link" rel="noreferrer" target="_blank">verbose <span class="param-doc-description">verbose: bool, default=False<br>
+<br>
+If True, the time elapsed while fitting each step will be printed as it<br>
+is completed.</span></a></td>
+<td class="value">False</td>
+</tr>
+</tbody>
+</table>
+
+            </details>
+        </div>
+    </div></div></div><div class="sk-serial"><div class="sk-item"><div class="sk-estimator fitted sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-2" type="checkbox"><label for="sk-estimator-id-2" class="sk-toggleable__label fitted sk-toggleable__label-arrow"><div><div>OrdinalEncoder</div></div><div><a class="sk-estimator-doc-link fitted" rel="noreferrer" target="_blank" href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html">?<span>Documentation for OrdinalEncoder</span></a></div></label><div class="sk-toggleable__content fitted" data-param-prefix="enc__">
+        <div class="estimator-table">
+            <details>
+                <summary>Parameters</summary>
+                
+<table class="parameters-table caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<tbody>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#:~:text=categories,-%27auto%27%20or%20a%20list%20of%20array-like%2C%20default%3D%27auto%27" class="param-doc-link" rel="noreferrer" target="_blank">categories <span class="param-doc-description">categories: 'auto' or a list of array-like, default='auto'<br>
+<br>
+Categories (unique values) per feature:<br>
+<br>
+- 'auto' : Determine categories automatically from the training data.<br>
+- list : ``categories[i]`` holds the categories expected in the ith<br>
+column. The passed categories should not mix strings and numeric<br>
+values, and should be sorted in case of numeric values.<br>
+<br>
+The used categories can be found in the ``categories_`` attribute.</span></a></td>
+<td class="value">'auto'</td>
+</tr>
+<tr class="default even">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#:~:text=dtype,-number%20type%2C%20default%3Dnp.float64" class="param-doc-link" rel="noreferrer" target="_blank">dtype <span class="param-doc-description">dtype: number type, default=np.float64<br>
+<br>
+Desired dtype of output.</span></a></td>
+<td class="value">&lt;class 'numpy.float64'&gt;</td>
+</tr>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#:~:text=handle_unknown,-%7B%27error%27%2C%20%27use_encoded_value%27%7D%2C%20default%3D%27error%27" class="param-doc-link" rel="noreferrer" target="_blank">handle_unknown <span class="param-doc-description">handle_unknown: {'error', 'use_encoded_value'}, default='error'<br>
+<br>
+When set to 'error' an error will be raised in case an unknown<br>
+categorical feature is present during transform. When set to<br>
+'use_encoded_value', the encoded value of unknown categories will be<br>
+set to the value given for the parameter `unknown_value`. In<br>
+:meth:`inverse_transform`, an unknown category will be denoted as None.<br>
+<br>
+.. versionadded:: 0.24</span></a></td>
+<td class="value">'error'</td>
+</tr>
+<tr class="default even">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#:~:text=unknown_value,-int%20or%20np.nan%2C%20default%3DNone" class="param-doc-link" rel="noreferrer" target="_blank">unknown_value <span class="param-doc-description">unknown_value: int or np.nan, default=None<br>
+<br>
+When the parameter handle_unknown is set to 'use_encoded_value', this<br>
+parameter is required and will set the encoded value of unknown<br>
+categories. It has to be distinct from the values used to encode any of<br>
+the categories in `fit`. If set to np.nan, the `dtype` parameter must<br>
+be a float dtype.<br>
+<br>
+.. versionadded:: 0.24</span></a></td>
+<td class="value">None</td>
+</tr>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#:~:text=encoded_missing_value,-int%20or%20np.nan%2C%20default%3Dnp.nan" class="param-doc-link" rel="noreferrer" target="_blank">encoded_missing_value <span class="param-doc-description">encoded_missing_value: int or np.nan, default=np.nan<br>
+<br>
+Encoded value of missing categories. If set to `np.nan`, then the `dtype`<br>
+parameter must be a float dtype.<br>
+<br>
+.. versionadded:: 1.1</span></a></td>
+<td class="value">nan</td>
+</tr>
+<tr class="default even">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#:~:text=min_frequency,-int%20or%20float%2C%20default%3DNone" class="param-doc-link" rel="noreferrer" target="_blank">min_frequency <span class="param-doc-description">min_frequency: int or float, default=None<br>
+<br>
+Specifies the minimum frequency below which a category will be<br>
+considered infrequent.<br>
+<br>
+- If `int`, categories with a smaller cardinality will be considered<br>
+infrequent.<br>
+<br>
+- If `float`, categories with a smaller cardinality than<br>
+`min_frequency * n_samples` will be considered infrequent.<br>
+<br>
+.. versionadded:: 1.3<br>
+Read more in the :ref:`User Guide <encoder_infrequent_categories>`.</encoder_infrequent_categories></span></a></td>
+<td class="value">None</td>
+</tr>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.preprocessing.OrdinalEncoder.html#:~:text=max_categories,-int%2C%20default%3DNone" class="param-doc-link" rel="noreferrer" target="_blank">max_categories <span class="param-doc-description">max_categories: int, default=None<br>
+<br>
+Specifies an upper limit to the number of output categories for each input<br>
+feature when considering infrequent categories. If there are infrequent<br>
+categories, `max_categories` includes the category representing the<br>
+infrequent categories along with the frequent categories. If `None`,<br>
+there is no limit to the number of output features.<br>
+<br>
+`max_categories` do **not** take into account missing or unknown<br>
+categories. Setting `unknown_value` or `encoded_missing_value` to an<br>
+integer will increase the number of unique integer codes by one each.<br>
+This can result in up to `max_categories + 2` integer codes.<br>
+<br>
+.. versionadded:: 1.3<br>
+Read more in the :ref:`User Guide <encoder_infrequent_categories>`.</encoder_infrequent_categories></span></a></td>
+<td class="value">None</td>
+</tr>
+</tbody>
+</table>
+
+            </details>
+        </div>
+    </div></div></div><div class="sk-item"><div class="sk-estimator fitted sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-3" type="checkbox"><label for="sk-estimator-id-3" class="sk-toggleable__label fitted sk-toggleable__label-arrow"><div><div>CategoricalNB</div></div><div><a class="sk-estimator-doc-link fitted" rel="noreferrer" target="_blank" href="https://scikit-learn.org/1.8/modules/generated/sklearn.naive_bayes.CategoricalNB.html">?<span>Documentation for CategoricalNB</span></a></div></label><div class="sk-toggleable__content fitted" data-param-prefix="nb__">
+        <div class="estimator-table">
+            <details>
+                <summary>Parameters</summary>
+                
+<table class="parameters-table caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<tbody>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.naive_bayes.CategoricalNB.html#:~:text=alpha,-float%2C%20default%3D1.0" class="param-doc-link" rel="noreferrer" target="_blank">alpha <span class="param-doc-description">alpha: float, default=1.0<br>
+<br>
+Additive (Laplace/Lidstone) smoothing parameter<br>
+(set alpha=0 and force_alpha=True, for no smoothing).</span></a></td>
+<td class="value">1.0</td>
+</tr>
+<tr class="default even">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.naive_bayes.CategoricalNB.html#:~:text=force_alpha,-bool%2C%20default%3DTrue" class="param-doc-link" rel="noreferrer" target="_blank">force_alpha <span class="param-doc-description">force_alpha: bool, default=True<br>
+<br>
+If False and alpha is less than 1e-10, it will set alpha to<br>
+1e-10. If True, alpha will remain unchanged. This may cause<br>
+numerical errors if alpha is too close to 0.<br>
+<br>
+.. versionadded:: 1.2<br>
+.. versionchanged:: 1.4<br>
+The default value of `force_alpha` changed to `True`.</span></a></td>
+<td class="value">True</td>
+</tr>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.naive_bayes.CategoricalNB.html#:~:text=fit_prior,-bool%2C%20default%3DTrue" class="param-doc-link" rel="noreferrer" target="_blank">fit_prior <span class="param-doc-description">fit_prior: bool, default=True<br>
+<br>
+Whether to learn class prior probabilities or not.<br>
+If false, a uniform prior will be used.</span></a></td>
+<td class="value">True</td>
+</tr>
+<tr class="default even">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.naive_bayes.CategoricalNB.html#:~:text=class_prior,-array-like%20of%20shape%20%28n_classes%2C%29%2C%20default%3DNone" class="param-doc-link" rel="noreferrer" target="_blank">class_prior <span class="param-doc-description">class_prior: array-like of shape (n_classes,), default=None<br>
+<br>
+Prior probabilities of the classes. If specified, the priors are not<br>
+adjusted according to the data.</span></a></td>
+<td class="value">None</td>
+</tr>
+<tr class="default odd">
+<td><em></em></td>
+<td class="param"><a href="https://scikit-learn.org/1.8/modules/generated/sklearn.naive_bayes.CategoricalNB.html#:~:text=min_categories,-int%20or%20array-like%20of%20shape%20%28n_features%2C%29%2C%20default%3DNone" class="param-doc-link" rel="noreferrer" target="_blank">min_categories <span class="param-doc-description">min_categories: int or array-like of shape (n_features,), default=None<br>
+<br>
+Minimum number of categories per feature.<br>
+<br>
+- integer: Sets the minimum number of categories per feature to<br>
+`n_categories` for each features.<br>
+- array-like: shape (n_features,) where `n_categories[i]` holds the<br>
+minimum number of categories for the ith column of the input.<br>
+- None (default): Determines the number of categories automatically<br>
+from the training data.<br>
+<br>
+.. versionadded:: 0.24</span></a></td>
+<td class="value">None</td>
+</tr>
+</tbody>
+</table>
+
+            </details>
+        </div>
+    </div></div></div></div></div></div></div><script>function copyToClipboard(text, element) {
+    // Get the parameter prefix from the closest toggleable content
+    const toggleableContent = element.closest('.sk-toggleable__content');
+    const paramPrefix = toggleableContent ? toggleableContent.dataset.paramPrefix : '';
+    const fullParamName = paramPrefix ? `${paramPrefix}${text}` : text;
+
+    const originalStyle = element.style;
+    const computedStyle = window.getComputedStyle(element);
+    const originalWidth = computedStyle.width;
+    const originalHTML = element.innerHTML.replace('Copied!', '');
+
+    navigator.clipboard.writeText(fullParamName)
+        .then(() => {
+            element.style.width = originalWidth;
+            element.style.color = 'green';
+            element.innerHTML = "Copied!";
+
+            setTimeout(() => {
+                element.innerHTML = originalHTML;
+                element.style = originalStyle;
+            }, 2000);
+        })
+        .catch(err => {
+            console.error('Failed to copy:', err);
+            element.style.color = 'red';
+            element.innerHTML = "Failed!";
+            setTimeout(() => {
+                element.innerHTML = originalHTML;
+                element.style = originalStyle;
+            }, 2000);
+        });
+    return false;
+}
+
+document.querySelectorAll('.copy-paste-icon').forEach(function(element) {
+    const toggleableContent = element.closest('.sk-toggleable__content');
+    const paramPrefix = toggleableContent ? toggleableContent.dataset.paramPrefix : '';
+    const paramName = element.parentElement.nextElementSibling
+        .textContent.trim().split(' ')[0];
+    const fullParamName = paramPrefix ? `${paramPrefix}${paramName}` : paramName;
+
+    element.setAttribute('title', fullParamName);
+});
+
+
+/**
+ * Adapted from Skrub
+ * https://github.com/skrub-data/skrub/blob/403466d1d5d4dc76a7ef569b3f8228db59a31dc3/skrub/_reporting/_data/templates/report.js#L789
+ * @returns "light" or "dark"
+ */
+function detectTheme(element) {
+    const body = document.querySelector('body');
+
+    // Check VSCode theme
+    const themeKindAttr = body.getAttribute('data-vscode-theme-kind');
+    const themeNameAttr = body.getAttribute('data-vscode-theme-name');
+
+    if (themeKindAttr && themeNameAttr) {
+        const themeKind = themeKindAttr.toLowerCase();
+        const themeName = themeNameAttr.toLowerCase();
+
+        if (themeKind.includes("dark") || themeName.includes("dark")) {
+            return "dark";
+        }
+        if (themeKind.includes("light") || themeName.includes("light")) {
+            return "light";
+        }
+    }
+
+    // Check Jupyter theme
+    if (body.getAttribute('data-jp-theme-light') === 'false') {
+        return 'dark';
+    } else if (body.getAttribute('data-jp-theme-light') === 'true') {
+        return 'light';
+    }
+
+    // Guess based on a parent element's color
+    const color = window.getComputedStyle(element.parentNode, null).getPropertyValue('color');
+    const match = color.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)\s*$/i);
+    if (match) {
+        const [r, g, b] = [
+            parseFloat(match[1]),
+            parseFloat(match[2]),
+            parseFloat(match[3])
+        ];
+
+        // https://en.wikipedia.org/wiki/HSL_and_HSV#Lightness
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        if (luma > 180) {
+            // If the text is very bright we have a dark theme
+            return 'dark';
+        }
+        if (luma < 75) {
+            // If the text is very dark we have a light theme
+            return 'light';
+        }
+        // Otherwise fall back to the next heuristic.
+    }
+
+    // Fallback to system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+
+function forceTheme(elementId) {
+    const estimatorElement = document.querySelector(`#${elementId}`);
+    if (estimatorElement === null) {
+        console.error(`Element with id ${elementId} not found.`);
+    } else {
+        const theme = detectTheme(estimatorElement);
+        estimatorElement.classList.add(theme);
+    }
+}
+
+forceTheme('sk-container-id-1');</script>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+What this code is doing
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Encodes categorical variables numerically because scikit-learn requires numeric inputs.</p>
+<p>Trains a categorical Naive Bayes classifier.</p>
+<p>Keeps preprocessing and modelling in one pipeline.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="from-probabilities-to-predictions" class="level3">
+<h3 class="anchored" data-anchor-id="from-probabilities-to-predictions">3.5 From Probabilities to Predictions</h3>
+<p>Naive Bayes produces probabilities, not hard decisions. To obtain class predictions, we apply a threshold.</p>
+<section id="r-predicted-probabilities-and-classes" class="level4">
+<h4 class="anchored" data-anchor-id="r-predicted-probabilities-and-classes">R: Predicted Probabilities and Classes</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>nb_probs <span class="ot">&lt;-</span> <span class="fu">predict</span>(nb_model, nb_val, <span class="at">type =</span> <span class="st">"raw"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>nb_preds <span class="ot">&lt;-</span> <span class="fu">predict</span>(nb_model, nb_val, <span class="at">type =</span> <span class="st">"class"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="python-predicted-probabilities-and-classes" class="level4">
+<h4 class="anchored" data-anchor-id="python-predicted-probabilities-and-classes">Python: Predicted Probabilities and Classes</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>nb_probs <span class="op">=</span> nb_model.predict_proba(X_val_nb)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>nb_preds <span class="op">=</span> nb_model.predict(X_val_nb)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Why this step matters
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Probabilities express uncertainty.</p>
+<p>Class labels depend on a threshold.</p>
+<p>Changing the threshold changes precision and recall.</p>
+<p>This directly links model output to evaluation metrics.</p>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+</section>
+<section id="computing-classification-metrics-r-python" class="level2">
+<h2 class="anchored" data-anchor-id="computing-classification-metrics-r-python">4. Computing Classification Metrics (R &amp; Python)</h2>
+<p>We now evaluate the Naive Bayes model using the metrics introduced earlier. The key idea in this section is simple:</p>
+<blockquote class="blockquote">
+<p><strong>The same predictions can look “good” or “bad” depending on the metric we use.</strong></p>
+</blockquote>
+<hr>
+<section id="confusion-matrix" class="level3">
+<h3 class="anchored" data-anchor-id="confusion-matrix">4.1 Confusion Matrix</h3>
+<p>We begin with the confusion matrix, which shows <strong>how predictions break down</strong>.</p>
+<hr>
+</section>
+<section id="r-confusion-matrix" class="level3">
+<h3 class="anchored" data-anchor-id="r-confusion-matrix">R: Confusion Matrix</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">Predicted =</span> nb_preds,</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">Actual    =</span> nb_val<span class="sc">$</span>y</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         Actual
+Predicted  no yes
+      no  736  88
+      yes   0   0</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+What this shows
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ul>
+<li>How many predictions fall into each TP, FP, FN, TN category.</li>
+<li>The raw material from which all classification metrics are computed.</li>
+</ul>
+<p>Why this matters:</p>
+<ul>
+<li>Metrics summarise behaviour.</li>
+<li>The confusion matrix <em>reveals</em> behaviour.</li>
+</ul>
+</div>
+</div>
+</div>
+<hr>
+<section id="python-confusion-matrix" class="level4">
+<h4 class="anchored" data-anchor-id="python-confusion-matrix">Python: Confusion Matrix</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> confusion_matrix</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>confusion_matrix(y_val, nb_preds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>array([[733,   1],
+       [ 90,   0]])</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Why start with the confusion matrix
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Looking only at a single metric hides important failure modes. The confusion matrix forces us to ask:</p>
+<ul>
+<li><em>What kinds of mistakes is the model making?</em></li>
+</ul>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="accuracy" class="level3">
+<h3 class="anchored" data-anchor-id="accuracy">4.2 Accuracy</h3>
+<p><strong>Accuracy</strong> measures how often the model is correct overall.</p>
+<hr>
+<section id="r-accuracy" class="level4">
+<h4 class="anchored" data-anchor-id="r-accuracy">R: Accuracy</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(nb_preds <span class="sc">==</span> nb_val<span class="sc">$</span>y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.8932039</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="python-accuracy" class="level4">
+<h4 class="anchored" data-anchor-id="python-accuracy">Python: Accuracy</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> accuracy_score</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>accuracy_score(y_val, nb_preds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0.8895631067961165</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+How to interpret accuracy here
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ul>
+<li>Accuracy treats all mistakes equally.</li>
+<li>With class imbalance, this can be misleading.</li>
+</ul>
+<p>Use accuracy as a <strong>baseline</strong>, not a final judgement.</p>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="precision-and-recall" class="level3">
+<h3 class="anchored" data-anchor-id="precision-and-recall">4.3 Precision and Recall</h3>
+<p>Accuracy alone does not tell us <strong>what kind of mistakes</strong> the model is making.</p>
+<p>Precision and recall help us look deeper.</p>
+<hr>
+<section id="r-precision-and-recall" class="level4">
+<h4 class="anchored" data-anchor-id="r-precision-and-recall">R: Precision and Recall</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">#install.packages("recipes")</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(caret)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>conf <span class="ot">&lt;-</span> <span class="fu">confusionMatrix</span>(nb_preds, nb_val<span class="sc">$</span>y, <span class="at">positive =</span> <span class="st">"yes"</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>conf<span class="sc">$</span>byClass[<span class="st">"Precision"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Precision 
+       NA </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>conf<span class="sc">$</span>byClass[<span class="st">"Recall"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Recall 
+     0 </code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="python-precision-and-recall" class="level4">
+<h4 class="anchored" data-anchor-id="python-precision-and-recall">Python: Precision and Recall</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> precision_score, recall_score</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>precision_score(y_val, nb_preds, pos_label<span class="op">=</span><span class="st">"yes"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0.0</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>recall_score(y_val, nb_preds, pos_label<span class="op">=</span><span class="st">"yes"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0.0</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Interpreting precision vs recall
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ul>
+<li>Precision focuses on <strong>false positives</strong>.</li>
+<li>Recall focuses on <strong>false negatives</strong>.</li>
+</ul>
+<p>Which one matters more depends on the <strong>context</strong>, not the model.</p>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="f1-score" class="level3">
+<h3 class="anchored" data-anchor-id="f1-score">4.4 F1 Score</h3>
+<p>The <strong>F1 score</strong> combines precision and recall into a single number.</p>
+<p>It is useful when:</p>
+<ul>
+<li>classes are imbalanced,</li>
+<li>both types of errors matter.</li>
+</ul>
+<hr>
+<section id="r-f1-score" class="level4">
+<h4 class="anchored" data-anchor-id="r-f1-score">R: F1 Score</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>conf<span class="sc">$</span>byClass[<span class="st">"F1"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>F1 
+NA </code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="python-f1-score" class="level4">
+<h4 class="anchored" data-anchor-id="python-f1-score">Python: F1 Score</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> f1_score</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>f1_score(y_val, nb_preds, pos_label<span class="op">=</span><span class="st">"yes"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0.0</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="a-note-on-thresholds-conceptual-only" class="level3">
+<h3 class="anchored" data-anchor-id="a-note-on-thresholds-conceptual-only">4.5 A Note on Thresholds (Conceptual Only)</h3>
+<p>Remember that Naive Bayes produces <strong>probabilities</strong>. Changing the classification threshold would:</p>
+<ul>
+<li>change the confusion matrix,</li>
+<li>alter precision and recall,</li>
+<li>leave the underlying probabilities unchanged.</li>
+</ul>
+<p>We do <strong>not</strong> tune thresholds here — but it is important to know that metrics depend on this choice.</p>
+<hr>
+</section>
+</section>
+<section id="regression-metrics-what-changes-when-the-target-is-numeric" class="level2">
+<h2 class="anchored" data-anchor-id="regression-metrics-what-changes-when-the-target-is-numeric">5. Regression Metrics — What Changes When the Target Is Numeric</h2>
+<p>So far, we have focused on <strong>classification</strong>, where predictions are discrete labels (e.g.&nbsp;<code>yes</code> / <code>no</code>). In <strong>regression</strong>, the situation is different:</p>
+<blockquote class="blockquote">
+<p>There is no notion of “correct” or “incorrect” —<br>
+only <em>how far off</em> a prediction is.</p>
+</blockquote>
+<p>This requires a different way of evaluating models.</p>
+<hr>
+<section id="why-accuracy-does-not-apply" class="level3">
+<h3 class="anchored" data-anchor-id="why-accuracy-does-not-apply">5.1 Why Accuracy Does Not Apply</h3>
+<p>In regression tasks: - predictions are numeric, - errors are continuous, - mistakes vary in magnitude.</p>
+<p>Asking whether a prediction is “right” no longer makes sense.</p>
+<p>Instead, we ask:</p>
+<blockquote class="blockquote">
+<p><em>How large are the prediction errors?</em></p>
+</blockquote>
+<hr>
+</section>
+<section id="absolute-error-vs-squared-error" class="level3">
+<h3 class="anchored" data-anchor-id="absolute-error-vs-squared-error">5.2 Absolute Error vs Squared Error</h3>
+<p>The core idea in regression evaluation is <strong>measuring error size</strong>.</p>
+<p>We briefly introduce three commonly used metrics.</p>
+<hr>
+<section id="mean-absolute-error-mae" class="level4">
+<h4 class="anchored" data-anchor-id="mean-absolute-error-mae">Mean Absolute Error (MAE)</h4>
+<p><strong>MAE</strong> measures the average absolute difference between predictions and actual values.</p>
+<p>Conceptually: - treats all errors equally, - easy to interpret in original units, - robust to occasional large errors.</p>
+<p>MAE answers: &gt; <em>On average, how far off are we?</em></p>
+<hr>
+</section>
+<section id="mean-squared-error-mse" class="level4">
+<h4 class="anchored" data-anchor-id="mean-squared-error-mse">Mean Squared Error (MSE)</h4>
+<p><strong>MSE</strong> measures the average of squared errors.</p>
+<p>Conceptually: - penalises large errors more heavily, - sensitive to outliers, - useful when large mistakes are particularly costly.</p>
+<p>MSE answers: &gt; <em>How much do large errors matter to us?</em></p>
+<hr>
+</section>
+<section id="root-mean-squared-error-rmse" class="level4">
+<h4 class="anchored" data-anchor-id="root-mean-squared-error-rmse">Root Mean Squared Error (RMSE)</h4>
+<p><strong>RMSE</strong> is the square root of MSE.</p>
+<p>Why it is used: - brings error back to the original scale, - still penalises large errors more than MAE.</p>
+<p>RMSE balances: - interpretability, - sensitivity to large deviations.</p>
+<hr>
+</section>
+</section>
+<section id="choosing-between-mae-and-rmse" class="level3">
+<h3 class="anchored" data-anchor-id="choosing-between-mae-and-rmse">5.3 Choosing Between MAE and RMSE</h3>
+<p>There is no universally correct choice.</p>
+<p>A useful rule of thumb:</p>
+<ul>
+<li>Use <strong>MAE</strong> when:
+<ul>
+<li>interpretability matters,</li>
+<li>all errors are equally costly.</li>
+</ul></li>
+<li>Use <strong>RMSE</strong> when:
+<ul>
+<li>large errors are particularly undesirable,</li>
+<li>outliers should be penalised more strongly.</li>
+</ul></li>
+</ul>
+<p>Metric choice reflects <strong>modelling priorities</strong>, not mathematical correctness.</p>
+<hr>
+</section>
+<section id="connecting-back-to-your-project-dataset" class="level3">
+<h3 class="anchored" data-anchor-id="connecting-back-to-your-project-dataset">5.4 Connecting Back to Your Project Dataset</h3>
+<p>In the <strong>Online Retail dataset</strong>, regression-style targets might include: - invoice value, - total customer spend, - basket size.</p>
+<p>If you choose such a target: - MAE tells you average monetary error, - RMSE highlights whether large mistakes dominate.</p>
+<p>As with classification, the metric must match the <strong>question you are asking</strong>.</p>
+<hr>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
